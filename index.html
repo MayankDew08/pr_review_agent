@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub PR Review Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .input-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 16px 20px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 16px;
+            margin-bottom: 30px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 20px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .pr-info-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .pr-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .pr-title {
+            font-size: 1.8em;
+            color: #333;
+        }
+
+        .risk-badge {
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1.1em;
+        }
+
+        .risk-low { background: #d4edda; color: #155724; }
+        .risk-medium { background: #fff3cd; color: #856404; }
+        .risk-high { background: #f8d7da; color: #721c24; }
+        .risk-critical { background: #721c24; color: white; }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .summary-number {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .summary-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .severity-badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .severity-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .severity-critical { background: #dc3545; color: white; }
+        .severity-high { background: #fd7e14; color: white; }
+        .severity-medium { background: #ffc107; color: #333; }
+        .severity-low { background: #28a745; color: white; }
+
+        .recommendation {
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 1.2em;
+            font-weight: 600;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .recommendation.approved {
+            background: #d4edda;
+            color: #155724;
+            border-left: 6px solid #28a745;
+        }
+
+        .recommendation.acceptable {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 6px solid #17a2b8;
+        }
+
+        .recommendation.caution {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 6px solid #ffc107;
+        }
+
+        .recommendation.warning {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 6px solid #dc3545;
+        }
+
+        .recommendation.critical {
+            background: #721c24;
+            color: white;
+            border-left: 6px solid #501419;
+        }
+
+        .review-section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .section-icon {
+            font-size: 2em;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .file-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .file-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .file-name {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .file-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .status-added { background: #d4edda; color: #155724; }
+        .status-modified { background: #d1ecf1; color: #0c5460; }
+        .status-deleted { background: #f8d7da; color: #721c24; }
+
+        .issue {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #666;
+        }
+
+        .issue.critical { border-left-color: #dc3545; }
+        .issue.high { border-left-color: #fd7e14; }
+        .issue.medium { border-left-color: #ffc107; }
+        .issue.low { border-left-color: #28a745; }
+
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .issue-title {
+            font-weight: 600;
+            color: #333;
+            flex: 1;
+        }
+
+        .issue-line {
+            background: #e9ecef;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+            margin-left: 10px;
+        }
+
+        .issue-description {
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .issue-suggestion {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #0366d6;
+            margin-top: 10px;
+        }
+
+        .suggestion-label {
+            font-weight: 600;
+            color: #0366d6;
+            margin-bottom: 5px;
+        }
+
+        .fixed-code {
+            background: #f6f8fa;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin-top: 10px;
+            overflow-x: auto;
+            border: 1px solid #e1e4e8;
+        }
+
+        .no-issues {
+            text-align: center;
+            padding: 40px;
+            color: #28a745;
+            font-size: 1.2em;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1em;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI PR Review Agent</h1>
+            <p>Comprehensive GitHub Pull Request Analysis</p>
+        </div>
+
+        <div class="input-card">
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <input 
+                        type="text" 
+                        id="prUrl" 
+                        placeholder="Paste GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)"
+                        value=""
+                    >
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="analyzePR()">
+                    <span>🔍</span>
+                    <span>Analyze PR</span>
+                </button>
+                <button class="btn-secondary" onclick="clearResults()">
+                    <span>🗑️</span>
+                    <span>Clear</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <h2>Analyzing Pull Request...</h2>
+            <p>This may take a few moments</p>
+        </div>
+
+        <div class="results" id="results">
+            <!-- Results will be inserted here -->
+        </div>
+    </div>
+
+    <script>
+        let currentReview = null;
+
+        async function analyzePR() {
+            const url = document.getElementById('prUrl').value.trim();
+            
+            if (!url) {
+                alert('Please enter a GitHub PR URL');
+                return;
+            }
+
+            // Validate URL
+            if (!url.includes('github.com') || !url.includes('/pull/')) {
+                alert('Please enter a valid GitHub Pull Request URL');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('results').classList.remove('active');
+            document.getElementById('results').innerHTML = '';
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/comprehensive_review/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to analyze PR');
+                }
+
+                const data = await response.json();
+                currentReview = data;
+                displayResults(data);
+            } catch (error) {
+                displayError(error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+            }
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.classList.add('active');
+
+            // PR Info Card
+            const prInfo = `
+                <div class="pr-info-card">
+                    <div class="pr-header">
+                        <div>
+                            <div class="pr-title">${data.pr_info.owner}/${data.pr_info.repo} #${data.pr_info.pr_number}</div>
+                            <p style="color: #666; margin-top: 10px;">${data.pr_summary || 'No summary available'}</p>
+                        </div>
+                        <div class="risk-badge ${getRiskClass(data.risk_score)}">
+                            Risk Score: ${data.risk_score}/10
+                        </div>
+                    </div>
+
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <div class="summary-number">${data.overall_summary.total_files_reviewed}</div>
+                            <div class="summary-label">Files Reviewed</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-number">${data.overall_summary.total_issues_found}</div>
+                            <div class="summary-label">Total Issues</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-number">${data.overall_summary.breakdown.logic_issues}</div>
+                            <div class="summary-label">Logic Issues</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-number">${data.overall_summary.breakdown.security_issues}</div>
+                            <div class="summary-label">Security Issues</div>
+                        </div>
+                    </div>
+
+                    <div class="severity-badges">
+                        <span class="severity-badge severity-critical">🔴 Critical: ${data.overall_summary.severity_breakdown.critical}</span>
+                        <span class="severity-badge severity-high">🟠 High: ${data.overall_summary.severity_breakdown.high}</span>
+                        <span class="severity-badge severity-medium">🟡 Medium: ${data.overall_summary.severity_breakdown.medium}</span>
+                        <span class="severity-badge severity-low">🟢 Low: ${data.overall_summary.severity_breakdown.low}</span>
+                    </div>
+
+                    <div class="recommendation ${getRecommendationClass(data.recommendation)}">
+                        ${data.recommendation}
+                    </div>
+
+                    <p style="text-align: center; color: #666; margin-top: 15px;">
+                        ⏱️ Analysis completed in ${data.review_time_seconds}s
+                    </p>
+                </div>
+            `;
+
+            // Review Tabs
+            const reviewTabs = `
+                <div class="review-section">
+                    <div class="tabs">
+                        <button class="tab active" onclick="switchTab('logic')">🧠 Logic Review</button>
+                        <button class="tab" onclick="switchTab('security')">🔒 Security Review</button>
+                        <button class="tab" onclick="switchTab('readability')">📖 Readability Review</button>
+                        <button class="tab" onclick="switchTab('performance')">⚡ Performance Review</button>
+                    </div>
+
+                    <div id="logic-tab" class="tab-content active">
+                        ${renderReviewSection(data.logic_review, '🧠 Logic Review')}
+                    </div>
+
+                    <div id="security-tab" class="tab-content">
+                        ${renderReviewSection(data.security_review, '🔒 Security Review')}
+                    </div>
+
+                    <div id="readability-tab" class="tab-content">
+                        ${renderReviewSection(data.readability_review, '📖 Readability Review')}
+                    </div>
+
+                    <div id="performance-tab" class="tab-content">
+                        ${renderReviewSection(data.performance_review, '⚡ Performance Review')}
+                    </div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = prInfo + reviewTabs;
+        }
+
+        function renderReviewSection(review, title) {
+            if (!review || !review.files || review.files.length === 0) {
+                return `<div class="no-issues">✅ No issues found in this category!</div>`;
+            }
+
+            const summary = `
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <h3 style="margin-bottom: 15px;">Summary</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <div><strong>Files with Issues:</strong> ${review.summary.files_with_issues}/${review.summary.total_files}</div>
+                        <div><strong>Total Issues:</strong> ${review.summary.total_issues}</div>
+                        <div><strong>Critical:</strong> ${review.summary.critical_issues}</div>
+                        <div><strong>High:</strong> ${review.summary.high_issues}</div>
+                        <div><strong>Medium:</strong> ${review.summary.medium_issues}</div>
+                        <div><strong>Low:</strong> ${review.summary.low_issues}</div>
+                    </div>
+                </div>
+            `;
+
+            const files = review.files.map(file => {
+                if (!file.issues || file.issues.length === 0) {
+                    return `
+                        <div class="file-card">
+                            <div class="file-header">
+                                <span class="file-name">${file.filename}</span>
+                                <span class="file-status status-${file.status || 'modified'}">${file.status || 'modified'}</span>
+                            </div>
+                            <div style="color: #28a745; text-align: center; padding: 10px;">
+                                ✅ No issues found in this file
+                            </div>
+                        </div>
+                    `;
+                }
+
+                const issues = file.issues.map(issue => `
+                    <div class="issue ${issue.severity}">
+                        <div class="issue-header">
+                            <div class="issue-title">
+                                <span class="severity-badge severity-${issue.severity}">${issue.severity.toUpperCase()}</span>
+                                ${issue.issue}
+                            </div>
+                            ${issue.line ? `<div class="issue-line">Line ${issue.line}</div>` : ''}
+                        </div>
+                        <div class="issue-description">${issue.issue}</div>
+                        ${issue.suggestion ? `
+                            <div class="issue-suggestion">
+                                <div class="suggestion-label">💡 Suggestion:</div>
+                                <div>${issue.suggestion}</div>
+                            </div>
+                        ` : ''}
+                        ${issue.fixed_code ? `
+                            <div class="fixed-code">
+                                <div style="color: #28a745; font-weight: 600; margin-bottom: 5px;">✓ Fixed Code:</div>
+                                <pre style="margin: 0; white-space: pre-wrap;">${escapeHtml(issue.fixed_code)}</pre>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="file-card">
+                        <div class="file-header">
+                            <span class="file-name">${file.filename}</span>
+                            <span class="file-status status-${file.status || 'modified'}">${file.status || 'modified'}</span>
+                        </div>
+                        ${issues}
+                    </div>
+                `;
+            }).join('');
+
+            return summary + files;
+        }
+
+        function switchTab(tab) {
+            // Remove active class from all tabs and contents
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            // Add active class to selected tab and content
+            event.target.classList.add('active');
+            document.getElementById(`${tab}-tab`).classList.add('active');
+        }
+
+        function getRiskClass(score) {
+            if (score >= 8) return 'risk-critical';
+            if (score >= 5) return 'risk-high';
+            if (score >= 3) return 'risk-medium';
+            return 'risk-low';
+        }
+
+        function getRecommendationClass(recommendation) {
+            if (recommendation.includes('❌') || recommendation.includes('CRITICAL')) return 'critical';
+            if (recommendation.includes('⚠️') && recommendation.includes('WARNING')) return 'warning';
+            if (recommendation.includes('⚠️') && recommendation.includes('CAUTION')) return 'caution';
+            if (recommendation.includes('✓') || recommendation.includes('ACCEPTABLE')) return 'acceptable';
+            return 'approved';
+        }
+
+        function displayError(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.classList.add('active');
+            resultsDiv.innerHTML = `
+                <div class="error-message">
+                    <h2>❌ Error</h2>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        function clearResults() {
+            document.getElementById('prUrl').value = '';
+            document.getElementById('results').classList.remove('active');
+            document.getElementById('results').innerHTML = '';
+            currentReview = null;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('prUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                analyzePR();
+            }
+        });
+    </script>
+</body>
+</html>
