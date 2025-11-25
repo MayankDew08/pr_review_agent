@@ -20,9 +20,13 @@ This frontend provides a user-friendly interface to interact with the PR Review 
 
 **Deployed URL**: [https://pr-review-ai.netlify.app/](https://pr-review-ai.netlify.app/)
 
-## 📸 Screenshot
+## 🎥 Demo Video
 
-![PR Review Agent Frontend](screenshot.png)
+
+https://github.com/user-attachments/assets/d66a49d7-6ceb-49a7-8398-03e17fedcc55
+
+
+
 
 ## 🛠️ Technology
 
