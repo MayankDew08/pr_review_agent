@@ -222,12 +222,20 @@ pr_review_agent/
 ## 🎥 Demonstrations
 
 ### Final Demo Video
-*[Video placeholder - Full system demonstration]*
+
+
+https://github.com/user-attachments/assets/6b808559-f121-42d6-a50b-61f6c02dfbd0
+
+
 
 ---
 
 ### Backend API Demo
-*[Video placeholder - API endpoints and response structure]*
+
+
+https://github.com/user-attachments/assets/9514aaa3-7007-44d7-8a7d-d7cf6e0f90b8
+
+
 
 ---
 
