@@ -508,6 +508,13 @@
 
     <script>
         let currentReview = null;
+        
+        // API Configuration - automatically detects local vs deployed
+        const API_BASE_URL = (window.location.protocol === 'file:' || 
+                              window.location.hostname === 'localhost' || 
+                              window.location.hostname === '127.0.0.1')
+            ? 'http://127.0.0.1:8000'  // Local development
+            : 'YOUR_DEPLOYED_BACKEND_URL';  // Replace with your deployed backend URL (e.g., https://your-app.render.com)
 
         async function analyzePR() {
             const url = document.getElementById('prUrl').value.trim();
@@ -529,7 +536,7 @@
             document.getElementById('results').innerHTML = '';
 
             try {
-                const response = await fetch('http://127.0.0.1:8000/comprehensive_review/', {
+                const response = await fetch(`${API_BASE_URL}/comprehensive_review/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

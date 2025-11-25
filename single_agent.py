@@ -245,7 +245,7 @@ PR FILE PATCHES START HERE
 """
     
     response = client.models.generate_content(
-        model="models/gemini-2.0-flash",
+        model="models/gemini-1.5-flash",
         contents=[prompt],
         config=types.GenerateContentConfig(
             temperature=0.1,

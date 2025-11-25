@@ -19,7 +19,7 @@ app = FastAPI()
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allow all origins for development (restrict in production)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,10 +27,10 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return FileResponse("index.html")
+    return {"message": "Github PR Agent API is running", "status": "active", "endpoints": ["/comprehensive_review/", "/full_review/", "/review_logic/", "/review_security/", "/review_readability/", "/review_performance/", "/get_pr_details/", "/get_pr_diffs/"]}
 
 @app.post("/post_link/")
-def post_link(link_data: InputLink):
+async def post_link(link_data: InputLink):
     try:
         # The validation happens automatically in the InputLink model
         pr_details = link_data.get_pr_details()
@@ -48,7 +48,7 @@ def post_link(link_data: InputLink):
         raise HTTPException(status_code=400, detail=str(e))
     
 @app.get("/get_pr_details/")
-def get_pr_details(link: InputLink):
+async def get_pr_details(link: InputLink):
     try:
         pr_details = link.get_pr_details()
         details = get_details(pr_details["owner"], pr_details["repo"], pr_details["pr_number"])
@@ -57,7 +57,7 @@ def get_pr_details(link: InputLink):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/get_pr_diffs/")
-def get_pr_diffs(link_data: InputLink):
+async def get_pr_diffs(link_data: InputLink):
     """Get PR file diffs for code review."""
     try:
         pr_details = link_data.get_pr_details()
@@ -86,7 +86,7 @@ def get_pr_diffs(link_data: InputLink):
         raise HTTPException(status_code=500, detail=f"Error fetching PR diffs: {str(e)}")
     
 @app.post("/review_logic/")
-def review_logic(link_data: InputLink):
+async def review_logic(link_data: InputLink):
     """Review the logic of code changes in a PR."""
     start_time = time.time()
     try:
@@ -118,7 +118,7 @@ def review_logic(link_data: InputLink):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 @app.post("/review_security/")
-def review_security(link_data: InputLink):
+async def review_security(link_data: InputLink):
     """Review the security of code changes in a PR."""
     start_time = time.time()
     try:
@@ -151,8 +151,8 @@ def review_security(link_data: InputLink):
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @app.post("/review_readability/")
-def review_readability(link_data: InputLink):
-    """Review the readability and maintainability of code changes in a PR."""
+async def review_readability(link_data: InputLink):
+    """Review the readability of code changes in a PR."""
     start_time = time.time()
     try:
         pr_details = link_data.get_pr_details()
@@ -184,7 +184,7 @@ def review_readability(link_data: InputLink):
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @app.post("/review_performance/")
-def review_performance(link_data: InputLink):
+async def review_performance(link_data: InputLink):
     """Review the performance of code changes in a PR."""
     start_time = time.time()
     try:
@@ -217,7 +217,7 @@ def review_performance(link_data: InputLink):
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @app.post("/comprehensive_review/")
-def comprehensive_review(input_link: InputLink):
+async def comprehensive_review(input_link: InputLink):
     """Get comprehensive PR review using single AI agent analyzing all aspects."""
     start_time = time.time()
     try:
@@ -255,10 +255,13 @@ def comprehensive_review(input_link: InputLink):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"ERROR in comprehensive_review: {error_details}")
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @app.post("/full_review/")
-def full_review(link_data: InputLink):
+async def full_review(link_data: InputLink):
     """Complete code review covering logic, security, readability, and performance."""
     start_time = time.time()
     try:
